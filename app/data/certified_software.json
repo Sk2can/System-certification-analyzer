@@ -1,0 +1,46 @@
+{
+    "software": [
+        {
+            "name": "RED OS",
+            "version": "8.0.2 MINIMAL (Standard)",
+            "type": "Системное",
+            "purpose": "Операционная система"
+        },
+        {
+            "name": "kesl",
+            "version": "12.2",
+            "type": "СрЗИ",
+            "purpose": "Антивирусное ПО"
+        },
+        {
+            "name": "klnagent64",
+            "version": "15.1",
+            "type": "СрЗИ",
+            "purpose": "Агент антивирусного ПО"
+        },
+        {
+            "name": "NetworkManager",
+            "version": "1.44",
+            "type": "Прикладное",
+            "purpose": "Сетевой сканер"
+        },
+        {
+            "name": "vim-filesystem",
+            "version": "9.1",
+            "type": "Прикладное",
+            "purpose": "Другое"
+        },
+        {
+            "name": "vipnetclient-gui",
+            "version": "5.0.2",
+            "type": "CКЗИ",
+            "purpose": "CКЗИ для защиты каналов связи"
+        },
+        {
+            "name": "pki-client-common",
+            "version": "2.0.1",
+            "type": "CКЗИ",
+            "purpose": "CКЗИ для защиты каналов связи"
+        }
+    ]
+}
