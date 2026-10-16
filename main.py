@@ -1,5 +1,6 @@
 from pathlib import Path
-from app.services.word_report import SoftwareTableBuilder
+from app.services.word_report import WordTableBuilder
+from app.services.read_file import Parser
 from dotenv import load_dotenv
 import os   
 
@@ -14,13 +15,17 @@ def main():
     result_dir.mkdir(parents=True, exist_ok=True)
     input_dir.mkdir(parents=True, exist_ok=True)
 
-    # Создаем экземпляр word файла
-    builder = SoftwareTableBuilder(
-        input_dir=input_dir,
-        output_file=f"{result_dir}/software.docx",
+
+
+    parser = Parser(dir_path=input_dir)
+    records = parser.read_software_from_files(parser.search_txt_reports())
+
+    builder = WordTableBuilder(
+        config_path="app/settings/software_table.json",
+        output_path="reports/software.docx",
     )
 
-    builder.build()
+    builder.build(records)
     
 
 if __name__ == "__main__":

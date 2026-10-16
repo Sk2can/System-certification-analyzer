@@ -1,0 +1,90 @@
+{
+  "document": {
+    "title": "Перечень установленного программного обеспечения",
+    "page_size": "A4",
+    "orientation": "landscape",
+    "margins_cm": {
+      "top": 1.5,
+      "bottom": 1.5,
+      "left": 1.5,
+      "right": 1.5
+    },
+    "font": {
+      "name": "Times New Roman",
+      "size_pt": 9
+    },
+    "title_style": {
+      "align": "center",
+      "bold": true,
+      "font_size_pt": 14
+    }
+  },
+  "table": {
+    "style": "Table Grid",
+    "autofit": false,
+    "repeat_header": true,
+    "allow_row_split": true,
+    "vertical_alignment": "center",
+    "cell_margins_cm": {
+      "top": 0.1,
+      "bottom": 0.1,
+      "left": 0.15,
+      "right": 0.15
+    },
+    "columns": [
+      {
+        "key": "number",
+        "header": "№ п/п",
+        "width_cm": 1.0,
+        "align": "center"
+      },
+      {
+        "key": "equipment_id",
+        "header": "Наименование ОТСС (идентификатор)",
+        "width_cm": 5.0,
+        "align": "left"
+      },
+      {
+        "key": "software",
+        "header": "Наименование ПО",
+        "width_cm": 8.0,
+        "align": "left"
+      },
+      {
+        "key": "software_type",
+        "header": "ПО (его тип)",
+        "width_cm": 6.0,
+        "align": "left"
+      },
+      {
+        "key": "purpose",
+        "header": "Назначение",
+        "width_cm": 6.7,
+        "align": "left"
+      }
+    ],
+    "merge": {
+      "header": true,
+      "header_text": "Наименование ПО",
+      "header_columns": [2, 3, 4],
+      "data_columns": [2, 3, 4]
+    },
+    "header_style": {
+      "align": "center",
+      "bold": true,
+      "font_size_pt": 9
+    }
+  },
+  "data": {
+    "group_by": "equipment_id",
+    "aggregate_field": "name",
+    "aggregate_output_field": "software",
+    "aggregate_separator": ", ",
+    "aggregate_prefix": "Дополнительное ПО: ",
+    "deduplicate": true,
+    "deduplicate_case_sensitive": false,
+    "include_version": false,
+    "version_field": "version",
+    "empty_value": ""
+  }
+}
