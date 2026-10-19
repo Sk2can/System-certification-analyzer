@@ -1,0 +1,84 @@
+{
+  "document": {
+    "title": "Технические характеристики ОТСС",
+    "page_size": "A4",
+    "orientation": "landscape",
+    "margins_cm": {
+      "top": 1.5,
+      "bottom": 1.5,
+      "left": 1.5,
+      "right": 1.5
+    },
+    "font": {
+      "name": "Times New Roman",
+      "size_pt": 9
+    },
+    "title_style": {
+      "align": "center",
+      "bold": true,
+      "font_size_pt": 14
+    }
+  },
+  "table": {
+    "style": "Table Grid",
+    "autofit": false,
+    "repeat_header": true,
+    "allow_row_split": true,
+    "vertical_alignment": "center",
+    "cell_margins_cm": {
+      "top": 0.1,
+      "bottom": 0.1,
+      "left": 0.15,
+      "right": 0.15
+    },
+    "columns": [
+      {
+        "key": "number",
+        "header": "№ п/п",
+        "width_cm": 1.0,
+        "align": "center"
+      },
+      {
+        "key": "equipment_id",
+        "header": "Наименование ОТСС (идентификатор)",
+        "width_cm": 5.0,
+        "align": "left"
+      },
+      {
+        "key": "location",
+        "header": "Расположение ОТСС",
+        "width_cm": 4.0,
+        "align": "left"
+      },
+      {
+        "key": "technical_specs",
+        "header": "Технические характеристики ОТСС",
+        "width_cm": 12.0,
+        "align": "left"
+      },
+      {
+        "key": "operating_system",
+        "header": "Операционная система",
+        "width_cm": 4.7,
+        "align": "left"
+      }
+    ],
+    "header_style": {
+      "align": "center",
+      "bold": true,
+      "font_size_pt": 9
+    }
+  },
+  "data": {
+    "group_by": "equipment_id",
+    "aggregate_field": "name",
+    "aggregate_output_field": "hardware",
+    "aggregate_separator": ", ",
+    "aggregate_prefix": "",
+    "deduplicate": true,
+    "deduplicate_case_sensitive": false,
+    "include_version": false,
+    "version_field": "version",
+    "empty_value": ""
+  }
+}
