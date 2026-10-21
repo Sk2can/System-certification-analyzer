@@ -1,13 +1,28 @@
 import json
 import re
 from pathlib import Path
+import sys
 
 
 class BaseParser:
-    """Базовый класс для парсеров TXT-отчетов."""
+    """Общие методы для работы с файлами."""
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
+
+    @staticmethod
+    def get_project_path(relation_path: str) -> Path:
+        """Возвращает путь к файлу в проекте, независимо от того,
+        где находится директория проекта.
+
+        - relation_path: путь к файлу относительно корня проекта (например app/config/software_table.json)"""
+
+        if getattr(sys, "frozen", False):
+            base_path = Path(sys._MEIPASS)
+        else:
+            base_path = Path(__file__).resolve().parents[2]
+
+        return Path(base_path / relation_path)
 
     @staticmethod
     def read_json(path: str | Path) -> dict:
@@ -387,7 +402,6 @@ class HardwareParser:
                     disks.append(description)
 
         return disks
-
 
 
 if __name__ == "__main__":

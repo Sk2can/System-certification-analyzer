@@ -46,6 +46,8 @@ class WordTableBuilder:
         self.config_path = Path(config_path)
         self.output_path = Path(output_path)
 
+        print(f"Загрузка конфигурации: {self.config_path}")
+
         self.config = self.load_config()
         self.document = None
         self.table = None
