@@ -2,20 +2,19 @@ import json
 import re
 from pathlib import Path
 import sys
+from typing import Any
 
-
+    
 class BaseParser:
     """Общие методы для работы с файлами."""
-
-    def __init__(self, path: str | Path):
-        self.path = Path(path)
 
     @staticmethod
     def get_project_path(relation_path: str) -> Path:
         """Возвращает путь к файлу в проекте, независимо от того,
         где находится директория проекта.
 
-        - relation_path: путь к файлу относительно корня проекта (например app/config/software_table.json)"""
+        Args:
+            relation_path: путь к файлу относительно корня проекта (например app/config/software_table.json)"""
 
         if getattr(sys, "frozen", False):
             base_path = Path(sys._MEIPASS)
@@ -25,14 +24,18 @@ class BaseParser:
         return Path(base_path / relation_path)
 
     @staticmethod
-    def read_json(path: str | Path) -> dict:
-        """Читает конфигурационный JSON."""
-        with Path(path).open("r", encoding="utf-8") as file:
-            return json.load(file)
-
-    @staticmethod
     def search_txt_reports(path: str | Path) -> list[Path]:
-        """Возвращает список TXT-файлов в каталоге."""
+        """Возвращает список TXT-файлов в каталоге.
+        
+        Args:
+            path: Абсолютный путь к каталогу.
+
+        Returns:
+            Список абсолютных путей к TXT-файлам.
+
+        Raises:
+            NotADirectoryError: Если указанный путь не является каталогом.
+            FileNotFoundError: Если в каталоге нет TXT-файлов."""
 
         if not Path(path).is_dir():
             raise NotADirectoryError(
@@ -52,13 +55,47 @@ class BaseParser:
 
         return files
 
+    @staticmethod
+    def get_computer_name(path: Path | str) -> str:
+        """Возвращает имя компьютера и серийный номер."""
+
+        # Получаем серийный номер из отчёта и название файла
+        serial_number = ""
+        computer_name = Path(path).stem.removeprefix("report_")
+
+        with Path(path).open("r", encoding="utf-8-sig") as file:
+            for line in file:
+                if line.strip().lower().startswith("serial number:"):
+                    serial_number = line.split(":", 1)[1].strip()
+                    if " " in serial_number:
+                        serial_number = None
+                    break
+
+        # Добавляем серийный номер к имени компьютера
+        if serial_number:
+            computer_name = f"{computer_name}\n[{serial_number}]"
+
+        return computer_name
+
+    @staticmethod
+    def load_json(file_path: str | Path) -> Any:
+            """Загружает данные из JSON-файла."""
+
+            path = Path(file_path)
+
+            with path.open("r", encoding="utf-8") as file:
+                return json.load(file)
+
 
 class SoftwareParser:
-    def __init__(self, dir_path: str):
-        self.path = Path(dir_path)
-        self.reports_list = BaseParser.search_txt_reports(dir_path)
+    """Парсер информации об установленном ПО."""
 
-    def read_software_block(self, path: str | Path) -> list[dict]:
+    def __init__(self, dir_path: str):
+        self.dir_path = Path(dir_path)
+        self.reports_list = sorted(BaseParser.search_txt_reports(dir_path))
+
+    @staticmethod
+    def read_software_block(path: str | Path) -> list[dict]:
         """Читает блок 'software' из файла отчета."""
         path = Path(path)
 
@@ -110,33 +147,57 @@ class SoftwareParser:
 
         return packages
 
-    def read_software_from_files(
-        self,
-        paths: list[str | Path]
-    ) -> dict[str, list[dict]]:
-        """Читает блок установленного ПО из нескольких файлов."""
+
+    def read_software_from_files(self) -> dict[str, list[dict]]:
+        """Читает ПО из файлов и определяет категорию и назначение."""
+
+        config_path = BaseParser.get_project_path(
+            "app\\settings\\software_categories.json"
+        )
+        categories = BaseParser.load_json(config_path)
+
         result = {}
 
-        for path in paths:
+        for path in self.reports_list:
             path = Path(path)
 
             packages = self.read_software_block(path)
-            result[path.stem] = packages
+
+            for package in packages:
+                package_name = str(package.get("name", "")).casefold()
+
+                # Значения по умолчанию для ПО, которого нет в JSON.
+                package["category"] = "Дополнительное ПО"
+                package["purpose"] = ""
+
+                for item in categories:
+                    matches = item.get("match", [])
+
+                    if any(
+                        str(keyword).casefold() in package_name
+                        for keyword in matches
+                    ):
+                        package["category"] = item["category"]
+                        package["purpose"] = item.get("purpose", "")
+                        break
+
+            computer_name = BaseParser.get_computer_name(path)
+            result[computer_name] = packages
 
         return result
 
-    def read_device_name(self) -> str:
-        """Читает идентификатор оборудования из первой строки TXT-файла."""
-        file_path = self.path
-        with open(file_path, "r", encoding="utf-8-sig") as file:
-            equipment_id = file.readline().strip()
 
-        if not equipment_id:
-            raise ValueError(
-                f"В первой строке файла {file_path} "
-                "не указан идентификатор оборудования"
-            )
-        return equipment_id
+    @staticmethod
+    def get_software_category(
+        package_name: str,
+        categories: dict[str, list[str]],
+    ) -> str | None:
+        for category, names in categories.items():
+            for name in names:
+                if name.casefold() in package_name.casefold():
+                    return category
+
+        return "Дополнительне ПО"
 
 
 class HardwareParser:
@@ -195,7 +256,7 @@ class HardwareParser:
         lines = text.splitlines()
 
         # Идентификатор оборудования находится в первой строке.
-        equipment_id = lines[0].strip() if lines else ""
+        equipment_id = BaseParser.get_computer_name(file_path)
 
         # Определяем ОС и извлекаем технические характеристики.
         os_name = self._find_os(text)
@@ -237,24 +298,39 @@ class HardwareParser:
         return {
             "equipment_id": equipment_id,
             "location": location,
-            "technical_specs": "; ".join(technical_specs),
+            "technical_specs": ".\n".join(technical_specs) +".",
             "operating_system": os_name,
         }
 
     @staticmethod
     def _find_os(text: str) -> str:
-        """Извлекает название операционной системы из отчёта."""
+        """Извлекает название ОС и редакцию из отчёта."""
 
-        match = re.search(
-            r'^\s*PRETTY_NAME\s*=\s*(.*?)\s*$',
+        pretty_name = re.search(
+            r'^\s*PRETTY_NAME\s*=\s*["\']?(.*?)["\']?\s*$',
             text,
             re.MULTILINE,
         )
 
-        if match:
-            return match.group(1).strip().strip("\"'")
+        edition = re.search(
+            r'^\s*EDITION\s*=\s*["\']?(.*?)["\']?\s*$',
+            text,
+            re.MULTILINE,
+        )
 
-        return ""
+        os_name = (
+            pretty_name.group(1).strip().strip("\"'")
+            if pretty_name
+            else ""
+        )
+
+        os_edition = (
+            edition.group(1).strip().strip("\"'")
+            if edition
+            else ""
+        )
+
+        return " ".join(filter(None, [os_name, os_edition]))
 
     @staticmethod
     def _marker_info(line: str) -> tuple[int, str] | None:
@@ -405,4 +481,13 @@ class HardwareParser:
 
 
 if __name__ == "__main__":
-    pass
+    parser = SoftwareParser(dir_path="C:\\Users\\labadmin\\Desktop\\SCA\\Info")
+    records = parser.read_software_from_files()
+
+    categories_path = BaseParser.get_project_path("app\\settings\\software_categories.json")
+    for item in records["kgauitc-22-05"]:
+        print(SoftwareParser.get_software_category(
+            package_name=item["name"],
+            categories=BaseParser.load_json(categories_path),
+        ))
+

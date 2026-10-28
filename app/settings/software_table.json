@@ -52,7 +52,7 @@
       },
       {
         "key": "software_type",
-        "header": "ПО (его тип)",
+        "header": "Тип ПО",
         "width_cm": 6.0,
         "align": "left"
       },
@@ -66,8 +66,8 @@
     "merge": {
       "header": true,
       "header_text": "Наименование ПО",
-      "header_columns": [2, 3, 4],
-      "data_columns": [2, 3, 4]
+      "header_columns": [],
+      "data_columns": []
     },
     "header_style": {
       "align": "center",
@@ -85,6 +85,7 @@
     "deduplicate_case_sensitive": false,
     "include_version": false,
     "version_field": "version",
-    "empty_value": ""
+    "empty_value": "",
+    "prepare": true
   }
 }

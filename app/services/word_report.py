@@ -1,6 +1,7 @@
 import json
 from collections import OrderedDict
 from pathlib import Path
+import re
 from docx import Document
 from docx.enum.section import WD_ORIENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -109,11 +110,13 @@ class WordTableBuilder:
 
         return self.document
 
+
     def configure_page(self):
         """Настраивает формат страницы, ориентацию и поля."""
         document_config = self.config.get("document", {})
         section = self.document.sections[0]
-
+        self.prepare = self.config.get("data", {}).get("prepare", False)
+        
         page_size = document_config.get("page_size", "A4").upper()
 
         if page_size not in self.PAGE_SIZES:
@@ -154,6 +157,7 @@ class WordTableBuilder:
             document_config.get("footer_distance_cm", 0.7)
         )
 
+
     def configure_default_style(self):
         """Задаёт шрифт по умолчанию для документа."""
         document_config = self.config.get("document", {})
@@ -181,10 +185,10 @@ class WordTableBuilder:
             "line_spacing", 1.0
         )
 
+
     # ---------------------------------------------------------
     # ФОРМАТИРОВАНИЕ ТЕКСТА И ЯЧЕЕК
     # ---------------------------------------------------------
-
     def configure_paragraph(
         self,
         paragraph,
@@ -226,6 +230,7 @@ class WordTableBuilder:
             run._element.get_or_add_rPr().get_or_add_rFonts().set(
                 qn("w:eastAsia"), font_name
             )
+
 
     def configure_cell(
         self,
@@ -276,6 +281,7 @@ class WordTableBuilder:
                 font_name=font_name,
             )
 
+
     @staticmethod
     def _vertical_alignment(value):
         """Преобразует строку в тип вертикального выравнивания Word."""
@@ -288,10 +294,10 @@ class WordTableBuilder:
             value, WD_CELL_VERTICAL_ALIGNMENT.CENTER
         )
 
+
     # ---------------------------------------------------------
     # НАСТРОЙКА ТАБЛИЦЫ
     # ---------------------------------------------------------
-
     def create_table(self):
         """Создаёт таблицу и заполняет её заголовками."""
         table_config = self.config["table"]
@@ -380,6 +386,7 @@ class WordTableBuilder:
 
         return self.table
 
+
     @staticmethod
     def set_repeat_table_header(row):
         """Помечает строку как повторяемый заголовок таблицы."""
@@ -390,6 +397,7 @@ class WordTableBuilder:
             element.set(qn("w:val"), "true")
             tr_pr.append(element)
 
+
     @staticmethod
     def set_row_cant_split(row):
         """Запрещает разделять одну строку таблицы между страницами."""
@@ -397,6 +405,7 @@ class WordTableBuilder:
 
         if tr_pr.find(qn("w:cantSplit")) is None:
             tr_pr.append(OxmlElement("w:cantSplit"))
+
 
     @staticmethod
     def merge_cells(row, column_indexes):
@@ -430,23 +439,13 @@ class WordTableBuilder:
             row.cells[indexes[-1]]
         )
 
+
     # ---------------------------------------------------------
     # ПОДГОТОВКА ДАННЫХ
     # ---------------------------------------------------------
-
     def prepare_rows(self, records):
-        """
-        Подготавливает записи для таблицы.
+        """Группирует ПО по ПК и подготавливает строки таблицы."""
 
-        Если задан group_by, группирует записи по этому полю
-        и объединяет значения aggregate_field в одну строку.
-        """
-
-
-    def prepare_rows(self, records):
-        """Подготавливает записи для таблицы Word."""
-
-        # Преобразуем dict[str, list[dict]] в list[dict].
         if isinstance(records, dict):
             normalized_records = []
 
@@ -458,107 +457,110 @@ class WordTableBuilder:
                     })
 
             records = normalized_records
+        else:
+            records = list(records)
 
         data_config = self.config.get("data", {})
-        group_by = data_config.get("group_by")
-
-        if not group_by:
-            return list(records)
-
-
-        data_config = self.config.get("data", {})
-
-        group_by = data_config.get("group_by")
-
-        if not group_by:
-            return list(records)
-
-        aggregate_field = data_config.get(
-            "aggregate_field", "name"
-        )
-        output_field = data_config.get(
-            "aggregate_output_field", "software"
-        )
-        separator = data_config.get(
-            "aggregate_separator", ", "
-        )
-        prefix = data_config.get("aggregate_prefix", "")
+        group_by = data_config.get("group_by", "equipment_id")
+        name_field = data_config.get("aggregate_field", "name")
+        separator = data_config.get("aggregate_separator", ", ")
         empty_value = data_config.get("empty_value", "")
 
-        include_version = data_config.get(
-            "include_version", False
-        )
-        version_field = data_config.get(
-            "version_field", "version"
-        )
+        additional_category = "Дополнительное ПО"
+        computers = OrderedDict()
 
-        deduplicate = data_config.get("deduplicate", True)
-        case_sensitive = data_config.get(
-            "deduplicate_case_sensitive", False
-        )
+        # Группируем программы по компьютерам.
+        for package in records:
+            equipment_id = package.get(group_by, empty_value)
 
-        groups = OrderedDict()
+            name = str(package.get(name_field, "") or "").strip()
 
-        for record in records:
-            group_value = record.get(group_by, empty_value)
-
-            if group_value not in groups:
-                groups[group_value] = {
-                    "record": dict(record),
-                    "values": [],
-                    "seen": set(),
-                }
-
-            value = record.get(aggregate_field, empty_value)
-
-            if value is None:
-                value = empty_value
-
-            value = str(value).strip()
-
-            if not value:
+            if not name:
                 continue
 
-            if include_version:
-                version = record.get(version_field, empty_value)
-
-                if version is not None and str(version).strip():
-                    value = f"{value} {str(version).strip()}"
-
-            comparison_value = (
-                value if case_sensitive else value.casefold()
+            # Удаляем архитектурный суффикс из названия пакета.
+            name = re.sub(
+                r"\.(?:x86-64|x86_64|x86-32|i[3-6]86|noarch|"
+                r"aarch64|arm64|ppc64le|ppc64|s390x)$",
+                "",
+                name,
+                flags=re.IGNORECASE,
             )
 
-            group = groups[group_value]
+            # Добавляем версию после названия через пробел.
+            version_field = self.config.get("data", {}).get(
+                "version_field", "version"
+            )
+            version = str(package.get(version_field, "") or "").strip()
 
-            if deduplicate and comparison_value in group["seen"]:
-                continue
+            if version:
+                name = f"{name} {version}"
 
-            group["seen"].add(comparison_value)
-            group["values"].append(value)
+            computer = computers.setdefault(
+                equipment_id,
+                {
+                    "classified": [],
+                    "additional": [],
+                    "additional_seen": set(),
+                },
+            )
+
+            category = package.get("category", additional_category)
+            purpose = package.get("purpose", "")
+
+            if category == additional_category:
+                normalized_name = name.casefold()
+
+                if normalized_name not in computer["additional_seen"]:
+                    computer["additional_seen"].add(normalized_name)
+                    computer["additional"].append(name)
+            else:
+                computer["classified"].append({
+                    "software": name,
+                    "software_type": category,
+                    "purpose": purpose,
+                })
 
         result = []
 
-        for group in groups.values():
-            record = group["record"]
+        # Номер назначается один раз на каждый ПК.
+        for pc_number, (equipment_id, computer) in enumerate(
+            computers.items(), start=1
+        ):
+            computer_rows = list(computer["classified"])
 
-            aggregated = separator.join(group["values"])
+            # Всё дополнительное ПО — одной строкой.
+            if computer["additional"]:
+                computer_rows.append({
+                    "software": (
+                        f"{additional_category}: "
+                        + separator.join(computer["additional"])
+                    ),
+                    "software_type": "",
+                    "purpose": "",
+                    "_merge_additional_columns": True,
+                })
 
-            if aggregated:
-                aggregated = prefix + aggregated
-
-            record[output_field] = aggregated
-
-            result.append(record)
+            for row_data in computer_rows:
+                result.append({
+                    "_pc_number": pc_number,
+                    "equipment_id": equipment_id,
+                    **row_data,
+                })
 
         return result
+
 
     # ---------------------------------------------------------
     # ДОБАВЛЕНИЕ СТРОК
     # ---------------------------------------------------------
-
     def add_rows(self, records):
-        """Добавляет данные в таблицу и возвращает число строк."""
+        """Добавляет строки и объединяет ячейки по компьютерам.
+
+        self.prepare=True  — подготовка строк ПО через prepare_rows().
+        self.prepare=False — запись готовых данных, например характеристик железа.
+        """
+
         if self.table is None:
             raise RuntimeError(
                 "Сначала необходимо вызвать create_table()."
@@ -568,21 +570,34 @@ class WordTableBuilder:
         columns = table_config["columns"]
         merge_config = table_config.get("merge", {})
         data_merge_columns = merge_config.get("data_columns", [])
+        empty_value = self.config.get("data", {}).get("empty_value", "")
 
-        data_config = self.config.get("data", {})
-        empty_value = data_config.get("empty_value", "")
+        # ПО требует предварительной подготовки, железо — нет.
+        if self.prepare:
+            prepared_records = self.prepare_rows(records)
+        else:
+            prepared_records = list(records)
 
-        prepared_records = self.prepare_rows(records)
+        # Индексы нужных столбцов.
+        column_indexes = {
+            column.get("key"): index
+            for index, column in enumerate(columns)
+        }
 
+        # Добавляем строки.
         for row_number, record in enumerate(prepared_records, start=1):
             row = self.table.add_row()
 
-            # Сначала заполняем ячейки до объединения.
             for index, column in enumerate(columns):
                 key = column.get("key")
-                value = row_number if key == "number" else record.get(
-                    key, empty_value
-                )
+
+                if key == "number":
+                    value = record.get(
+                        "_pc_number",
+                        row_number,
+                    )
+                else:
+                    value = record.get(key, empty_value)
 
                 if value is None:
                     value = empty_value
@@ -602,28 +617,27 @@ class WordTableBuilder:
                 if width_cm is not None:
                     cell.width = Cm(width_cm)
 
-            # Объединяем ячейки строки данных, если это настроено.
-            if data_merge_columns:
+            # Горизонтальное объединение из JSON.
+            # Для железа не применяем настройки объединения таблицы ПО.
+            if self.prepare and data_merge_columns:
                 merged_cell = self.merge_cells(
                     row, data_merge_columns
                 )
 
-                # В объединённой ячейке остаётся значение
-                # первого столбца из группы объединения.
                 first_index = min(data_merge_columns)
                 first_column = columns[first_index]
                 first_key = first_column.get("key")
 
-                merged_value = (
-                    row_number
-                    if first_key == "number"
-                    else record.get(first_key, empty_value)
+                if first_key == "number":
+                    merged_value = record.get("_pc_number", "")
+                else:
+                    merged_value = record.get(first_key, empty_value)
+
+                merged_cell.text = str(
+                    merged_value
+                    if merged_value is not None
+                    else empty_value
                 )
-
-                if merged_value is None:
-                    merged_value = empty_value
-
-                merged_cell.text = str(merged_value)
 
                 self.configure_cell(
                     merged_cell,
@@ -633,15 +647,101 @@ class WordTableBuilder:
                     font_name=first_column.get("font_name"),
                 )
 
+            # Объединяем столбцы только у строки дополнительного ПО.
+            if self.prepare and record.get("_merge_additional_columns"):
+                required_keys = (
+                    "software",
+                    "software_type",
+                    "purpose",
+                )
+
+                if all(key in column_indexes for key in required_keys):
+                    indexes = sorted(
+                        column_indexes[key]
+                        for key in required_keys
+                    )
+
+                    # Объединять можно только соседние столбцы.
+                    if indexes == list(
+                        range(indexes[0], indexes[-1] + 1)
+                    ):
+                        merged_cell = self.merge_cells(row, indexes)
+                        merged_cell.text = record.get("software", "")
+
+                        software_column = columns[
+                            column_indexes["software"]
+                        ]
+
+                        self.configure_cell(
+                            merged_cell,
+                            alignment=software_column.get("align", "left"),
+                            bold=software_column.get("bold", False),
+                            font_size=software_column.get("font_size_pt"),
+                            font_name=software_column.get("font_name"),
+                        )
+
             if table_config.get("allow_row_split", False) is False:
                 self.set_row_cant_split(row)
 
+        # Вертикальное объединение номера и названия ПК
+        # выполняем только для подготовленных строк ПО.
+        if self.prepare:
+            start = 0
+
+            while start < len(prepared_records):
+                pc_number = prepared_records[start].get("_pc_number")
+                end = start + 1
+
+                # Находим строки одного ПК.
+                while (
+                    end < len(prepared_records)
+                    and prepared_records[end].get("_pc_number") == pc_number
+                ):
+                    end += 1
+
+                # +1, поскольку первая строка таблицы — заголовок.
+                if end - start > 1:
+                    for key in ("number", "equipment_id"):
+                        if key not in column_indexes:
+                            continue
+
+                        col_index = column_indexes[key]
+
+                        top_cell = self.table.cell(start + 1, col_index)
+                        bottom_cell = self.table.cell(end, col_index)
+
+                        value = str(
+                            prepared_records[start].get(
+                                "_pc_number"
+                                if key == "number"
+                                else "equipment_id",
+                                "",
+                            ) or ""
+                        )
+
+                        top_cell.text = value
+                        bottom_cell.text = ""
+
+                        top_cell.merge(bottom_cell)
+                        top_cell.text = value
+
+                        column = columns[col_index]
+                        self.configure_cell(
+                            top_cell,
+                            alignment=column.get("align", "left"),
+                            bold=column.get("bold", False),
+                            font_size=column.get("font_size_pt"),
+                            font_name=column.get("font_name"),
+                        )
+
+                start = end
+
         return len(prepared_records)
+
 
     # ---------------------------------------------------------
     # СОХРАНЕНИЕ
     # ---------------------------------------------------------
-
     def save(self):
         """Сохраняет документ в указанный файл."""
         self.output_path.parent.mkdir(
@@ -652,6 +752,7 @@ class WordTableBuilder:
         self.document.save(self.output_path)
 
         return self.output_path
+
 
     def build(self, records):
         """

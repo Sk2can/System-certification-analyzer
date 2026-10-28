@@ -13,7 +13,7 @@ def main():
     input_dir.mkdir(parents=True, exist_ok=True)
 
     parser = SoftwareParser(dir_path=input_dir)
-    records = parser.read_software_from_files(BaseParser.search_txt_reports(input_dir))
+    records = parser.read_software_from_files()
     builder = WordTableBuilder(
         config_path= BaseParser.get_project_path("app\\settings\\software_table.json"),
         output_path=f"{result_dir}/software.docx",

@@ -79,6 +79,7 @@
     "deduplicate_case_sensitive": false,
     "include_version": false,
     "version_field": "version",
-    "empty_value": ""
+    "empty_value": "",
+    "prepare": false
   }
 }
