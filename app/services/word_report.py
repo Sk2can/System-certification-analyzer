@@ -740,6 +740,80 @@ class WordTableBuilder:
 
 
     # ---------------------------------------------------------
+    # Проверка имени файла
+    # ---------------------------------------------------------
+    @staticmethod
+    def input_filename(output_dir: str | Path, filename: str, default_name: str) -> Path:
+        """Запрашивает и проверяет имя итогового Word-файла.
+
+        Args:
+            output_dir (str | Path): Директория для сохранения файла.
+            filename (str): Предлагаемое имя файла пользователем.
+            default_name (str): Имя файла по умолчанию, если filename пустое.
+
+        Returns:
+            Path: Полный путь к итоговому Word-файлу.
+        """
+
+        output_dir = Path(output_dir)
+
+        # Зарезервированные имена Windows: CON, NUL, COM1 и т. д.
+        reserved_names = {
+            "CON", "PRN", "AUX", "NUL",
+            *(f"COM{i}" for i in range(1, 10)),
+            *(f"LPT{i}" for i in range(1, 10)),
+        }
+
+        # Символы, запрещённые в именах файлов Windows.
+        invalid_chars = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+        while True:
+            if not filename:
+                filename = default_name
+                print(f"Используется имя по умолчанию: {filename}")
+
+            # Не допускаем имена с пробелом или точкой в конце.
+            if filename.endswith((" ", ".")):
+                print("Ошибка: имя файла не должно заканчиваться пробелом или точкой.")
+                continue
+
+            if invalid_chars.search(filename):
+                print('Ошибка: имя содержит запрещённые символы: <>:"/\\|?*')
+                continue
+
+            # Если расширение не указано — добавляем .docx.
+            if filename.lower().endswith(".docx"):
+                filename = filename[:-5]
+            elif "." in filename:
+                print("Ошибка: используйте расширение .docx.")
+                continue
+
+            if not filename:
+                filename = default_name
+                print(f"Используется имя по умолчанию: {filename}")
+
+            # Windows считает зарезервированными также имена вида CON.txt.
+            if filename.split(".")[0].upper() in reserved_names:
+                print("Ошибка: это зарезервированное имя Windows.")
+                continue
+
+            filename += ".docx"
+            output_path = output_dir / filename
+
+            if output_path.exists():
+                overwrite = input(
+                    f"Файл «{filename}» уже существует. "
+                    "Перезаписать? (д/н): "
+                ).strip().lower()
+
+                if overwrite not in {"д", "да", "y", "yes"}:
+                    print("Введите другое имя файла.")
+                    continue
+
+            return output_path
+
+
+    # ---------------------------------------------------------
     # СОХРАНЕНИЕ
     # ---------------------------------------------------------
     def save(self):
