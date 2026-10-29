@@ -16,6 +16,7 @@ SETTINGS = PROJECT_DIR / "app" / "settings"
 WORK_DIR = ASSEMBLING_DIR / "build"
 DIST_DIR = ASSEMBLING_DIR / "dist"
 SPEC_FILE = ASSEMBLING_DIR / "SCA.spec"
+ICON = ASSEMBLING_DIR / "icon.ico"
 
 
 def check_paths() -> bool:
@@ -56,6 +57,21 @@ def clean_build() -> None:
 def build_exe() -> int:
     """Запускает PyInstaller с явным списком аргументов."""
 
+    # Удаляем предыдущую сборку
+    exe_path = DIST_DIR / "SCA.exe"
+
+    if exe_path.exists():
+        try:
+            exe_path.unlink()
+            print(f"Удалён старый файл: {exe_path}")
+        except PermissionError:
+            print(
+                "Ошибка: не удалось удалить старый SCA.exe. "
+                "Закрой приложение и попробуй снова."
+            )
+            return 1
+
+    
     # Разделитель ресурсов соответствует текущей ОС.
     data_argument = f"{PROJECT_DIR / 'app'}{os.pathsep}app"
 
@@ -67,6 +83,8 @@ def build_exe() -> int:
         "--clean",
         "--noconfirm",
         "--onefile",
+        "--icon",
+        str(ICON),
         "--console",
         "--name",
         "SCA",

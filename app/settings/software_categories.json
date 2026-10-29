@@ -1,43 +1,57 @@
 [
   {
     "name": "КриптоПро CSP",
-    "match": ["cryptopro"],
+    "match": [
+      "cryptopro"
+    ],
     "category": "СКЗИ",
     "purpose": "Средство криптографической защиты информации"
   },
   {
     "name": "Kaspersky Endpoint Security for Linux",
-    "match": ["kesl"],
+    "match": [
+      "kesl"
+    ],
     "category": "СРЗИ",
     "purpose": "Антивирусное ПО"
   },
   {
     "name": "SSSD Client",
-    "match": ["sssd-client"],
+    "match": [
+      "sssd-client"
+    ],
     "category": "СРЗИ",
     "purpose": "Средства аутентификации и управления доступом"
   },
   {
     "name": "Samba Winbind Modules",
-    "match": ["samba-winbind-modules"],
+    "match": [
+      "samba-winbind-modules"
+    ],
     "category": "СРЗИ",
     "purpose": "Средства интеграции с доменной инфраструктурой"
   },
   {
     "name": "RED OS",
-    "match": ["red os"],
+    "match": [
+      "red os"
+    ],
     "category": "Системное",
     "purpose": "Операционная система"
   },
   {
     "name": "Vim Filesystem",
-    "match": ["vim-filesystem"],
+    "match": [
+      "vim-filesystem"
+    ],
     "category": "Прикладное",
     "purpose": "Компоненты текстового редактора Vim"
   },
   {
     "name": "NetworkManager",
-    "match": ["networkmanager"],
+    "match": [
+      "networkmanager"
+    ],
     "category": "Прикладное",
     "purpose": "Управление сетевыми подключениями"
   }

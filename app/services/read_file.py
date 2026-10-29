@@ -92,7 +92,11 @@ class SoftwareParser:
 
     def __init__(self, dir_path: str):
         self.dir_path = Path(dir_path)
-        self.reports_list = sorted(BaseParser.search_txt_reports(dir_path))
+        try:
+            self.reports_list = sorted(BaseParser.search_txt_reports(dir_path))
+        except (NotADirectoryError, FileNotFoundError) as error:
+            print(f"Ошибка: {error}")
+            self.reports_list = []
 
     @staticmethod
     def read_software_block(path: str | Path) -> list[dict]:
@@ -151,6 +155,10 @@ class SoftwareParser:
     def read_software_from_files(self) -> dict[str, list[dict]]:
         """Читает ПО из файлов и определяет категорию и назначение."""
 
+        if not self.reports_list:
+            print("Нет доступных отчетов для обработки.")
+            return {}
+        
         config_path = BaseParser.get_project_path(
             "app\\settings\\software_categories.json"
         )
@@ -478,16 +486,3 @@ class HardwareParser:
                     disks.append(description)
 
         return disks
-
-
-if __name__ == "__main__":
-    parser = SoftwareParser(dir_path="C:\\Users\\labadmin\\Desktop\\SCA\\Info")
-    records = parser.read_software_from_files()
-
-    categories_path = BaseParser.get_project_path("app\\settings\\software_categories.json")
-    for item in records["kgauitc-22-05"]:
-        print(SoftwareParser.get_software_category(
-            package_name=item["name"],
-            categories=BaseParser.load_json(categories_path),
-        ))
-

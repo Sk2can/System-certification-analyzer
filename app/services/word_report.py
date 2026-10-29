@@ -803,10 +803,10 @@ class WordTableBuilder:
             if output_path.exists():
                 overwrite = input(
                     f"Файл «{filename}» уже существует. "
-                    "Перезаписать? (д/н): "
+                    "Перезаписать? (Д/н): "
                 ).strip().lower()
 
-                if overwrite not in {"д", "да", "y", "yes"}:
+                if overwrite not in {"д", "да", "y", "yes", ""}:
                     print("Введите другое имя файла.")
                     continue
 
