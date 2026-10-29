@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 import sys
@@ -151,7 +152,6 @@ class SoftwareParser:
 
         return packages
 
-
     def read_software_from_files(self) -> dict[str, list[dict]]:
         """Читает ПО из файлов и определяет категорию и назначение."""
 
@@ -159,8 +159,10 @@ class SoftwareParser:
             print("Нет доступных отчетов для обработки.")
             return {}
         
-        config_path = BaseParser.get_project_path(
-            "app\\settings\\software_categories.json"
+        config_path = (
+            Path(os.environ["APPDATA"])
+            / "SCA"
+            / "software_categories.json"
         )
         categories = BaseParser.load_json(config_path)
 
@@ -194,7 +196,6 @@ class SoftwareParser:
 
         return result
 
-
     @staticmethod
     def get_software_category(
         package_name: str,
@@ -205,7 +206,7 @@ class SoftwareParser:
                 if name.casefold() in package_name.casefold():
                     return category
 
-        return "Дополнительне ПО"
+        return "Дополнительное ПО"
 
 
 class HardwareParser:

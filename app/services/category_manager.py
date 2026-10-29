@@ -1,18 +1,42 @@
 import json
-from app.services.read_file import BaseParser
+import os
+import sys
+from pathlib import Path
 
+# Путь к исходному JSON, включённому в приложение.
+if getattr(sys, "frozen", False):
+    RESOURCE_DIR = Path(sys._MEIPASS) / "app" / "settings"
+else:
+    RESOURCE_DIR = Path(__file__).resolve().parent.parent / "settings"
 
-CONFIG_PATH = BaseParser.get_project_path("app\\settings\\software_categories.json")
+DEFAULT_CONFIG_PATH = RESOURCE_DIR / "software_categories.json"
+
+# Постоянное хранилище пользовательских настроек.
+APP_DATA_DIR = Path(
+    os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")
+) / "SCA"
+
+CONFIG_PATH = (
+    Path(os.environ["APPDATA"])
+    / "SCA"
+    / "software_categories.json"
+)
 
 FIELDS = ("name", "match", "category", "purpose")
 
 
 def load_categories() -> list[dict]:
-    """Загружает и проверяет записи о программном обеспечении."""
+    APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not CONFIG_PATH.is_file():
-        raise FileNotFoundError(
-            f"Файл не найден: {CONFIG_PATH}"
+    if not CONFIG_PATH.exists():
+        if not DEFAULT_CONFIG_PATH.is_file():
+            raise FileNotFoundError(
+                f"Не найден файл шаблона категорий: {DEFAULT_CONFIG_PATH}"
+            )
+
+        CONFIG_PATH.write_text(
+            DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"),
+            encoding="utf-8",
         )
 
     with CONFIG_PATH.open("r", encoding="utf-8") as file:
@@ -28,53 +52,45 @@ def load_categories() -> list[dict]:
         if not all(field in item for field in FIELDS):
             raise ValueError(
                 f"Запись №{index} должна содержать поля: "
-                + ", ".join(FIELDS)
+                f"{', '.join(FIELDS)}"
             )
 
         for field in ("name", "category", "purpose"):
             if not isinstance(item[field], str) or not item[field].strip():
                 raise ValueError(
-                    f"Поле «{field}» в записи №{index} пустое "
-                    "или имеет неверный тип."
+                    f"Поле '{field}' в записи №{index} должно быть непустой строкой."
                 )
 
+        matches = item["match"]
         if (
-            not isinstance(item["match"], list)
-            or not item["match"]
+            not isinstance(matches, list)
+            or not matches
             or not all(
                 isinstance(value, str) and value.strip()
-                for value in item["match"]
+                for value in matches
             )
         ):
             raise ValueError(
-                f"Поле «match» в записи №{index} "
-                "должно содержать непустой список строк."
+                f"Поле 'match' в записи №{index} должно содержать "
+                "список непустых строк."
             )
 
     return data
 
 
 def save_categories(records: list[dict]) -> None:
-    """Сохраняет записи в JSON."""
-
+    APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
     temp_path = CONFIG_PATH.with_suffix(".json.tmp")
 
     try:
         with temp_path.open("w", encoding="utf-8") as file:
-            json.dump(
-                records,
-                file,
-                ensure_ascii=False,
-                indent=2,
-            )
+            json.dump(records, file, ensure_ascii=False, indent=2)
             file.write("\n")
 
         temp_path.replace(CONFIG_PATH)
-
     finally:
         if temp_path.exists():
             temp_path.unlink()
-
 
 def input_nonempty(prompt: str) -> str:
     """Запрашивает непустую строку."""
